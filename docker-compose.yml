@@ -1,0 +1,20 @@
+services:
+  evereasy-server:
+    build: .
+    container_name: evereasy-server
+    restart: unless-stopped
+    ports:
+      # 宿主机 8787 → 容器 8787；无域名无 HTTPS 时用 http://服务器IP:8787 访问
+      - "8787:8787"
+    environment:
+      - PORT=8787
+      - EVEREASY_DB=/app/data/evereasy.db
+      # ── AI 官方通道（全代理）：App 内官方 AI 的总开关，填入你的 OpenRouter Key 后
+      #    docker compose up -d --build 重启生效。申请地址 https://openrouter.ai/keys
+      #    注意：服务器硬锁单模型（stealth/ox-alpha），这把 Key 无法被用来调其他模型 ──
+      - OPENROUTER_API_KEY=
+      # 可选：唯一允许调用的模型名（默认 stealth/ox-alpha）
+      # - OXALPHA_MODEL=stealth/ox-alpha
+    volumes:
+      # 持久化数据库文件到宿主机 ./data（想弃用/迁移直接拷走这个目录即可）
+      - ./data:/app/data
