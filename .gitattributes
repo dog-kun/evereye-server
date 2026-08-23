@@ -1,0 +1,5 @@
+# 部署目标是 Linux(Docker),脚本类文件必须保持 LF,否则 bash 会因 \r 报错
+* text=auto
+*.sh  text eol=lf
+Dockerfile         text eol=lf
+docker-compose.yml text eol=lf
