@@ -28,7 +28,7 @@
 git clone https://github.com/dog-kun/evereye-server.git
 cd evereye-server
 
-# 2. 在 docker-compose.yml 里填好 OPENROUTER_API_KEY
+# 2. 在 docker-compose.yml 里填好 GLM_API_KEY（或旧名 OPENROUTER_API_KEY 仍兼容）
 
 # 3. 启动(此后每次更新只需 ./deploy.sh)
 ./deploy.sh
@@ -103,18 +103,18 @@ docker compose down             # 停止（数据仍在 ./data）
 
 ## 四、AI 官方通道（后端全代理，App 端零配置 + 单模型硬锁）
 
-App 内置官方免费 AI（OxAlpha 模型），经本服务器转发：API Key 只配在服务器环境变量里，
+App 内置官方 AI，经本服务器全代理转发到智谱 GLM：API Key 只配在服务器环境变量里，
 永不随客户端分发；客户端只需登录即可使用。
 
-**单模型硬锁**：服务器只允许调用 `OXALPHA_MODEL`（默认 `stealth/ox-alpha`）这一个模型。
+**单模型硬锁**：服务器只允许调用 `GLM_MODEL`（默认 `glm-4-flash`）这一个模型。
 请求体里的 `provider`/`model` 字段一律被忽略，不存在切换其他模型的入口——
 即使有人直接调 API 也刷不了你这把 Key 下的其他模型配额。
 
 | 环境变量 | 必填 | 默认 | 说明 |
 |---------|------|------|------|
-| `OPENROUTER_API_KEY` | ✅ AI 功能总开关 | — | 在 [openrouter.ai/keys](https://openrouter.ai/keys) 申请；仅用于调用上方固定模型。不填则 App 内提示「服务器未配置」 |
-| `OPENROUTER_BASE_URL` | 否 | `https://openrouter.ai/api/v1` | 上游地址（OpenRouter 协议兼容） |
-| `OXALPHA_MODEL` | 否 | `stealth/ox-alpha` | 唯一允许调用的模型名 |
+| `GLM_API_KEY` | ✅ AI 功能总开关 | — | 在 [open.bigmodel.cn](https://open.bigmodel.cn) 申请智谱 Key；仅用于调用上方固定模型。不填则 App 内提示「服务器未配置」。兼容回退：未设时回落读旧名 `OPENROUTER_API_KEY` |
+| `GLM_BASE_URL` | 否 | `https://open.bigmodel.cn/api/paas/v4` | 上游地址（OpenAI 协议兼容）。兼容回退 `OPENROUTER_BASE_URL` |
+| `GLM_MODEL` | 否 | `glm-4-flash` | 唯一允许调用的模型名。兼容回退 `OXALPHA_MODEL` |
 
 行为细节：`POST /api/ai/chat` 强制非流式、90 秒上游超时（504）、请求体限 200KB（413）、
 messages 形状严格校验（400）；上游错误原样透传状态码与 JSON。

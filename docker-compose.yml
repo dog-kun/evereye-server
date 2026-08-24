@@ -9,12 +9,16 @@ services:
     environment:
       - PORT=8787
       - EVEREASY_DB=/app/data/evereasy.db
-      # ── AI 官方通道（全代理）：Key 不写在这里！写到同目录的 .env 文件里（一行）：
-      #    echo 'OPENROUTER_API_KEY=sk-or-v1-xxx' > .env
+      # ── AI 官方通道（全代理，默认走智谱 GLM）：Key 不写在这里！写到同目录的 .env 文件里（一行）：
+      #    echo 'GLM_API_KEY=你的智谱key' > .env
       #    .env 已被 .gitignore 排除,永远不会进入 git/公开仓库 ──
+      - GLM_API_KEY=${GLM_API_KEY:-}
+      # 兼容旧名：若只配了 OPENROUTER_API_KEY 仍可生效（GLM_API_KEY 优先）
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      # 可选：唯一允许调用的模型名（默认 stealth/ox-alpha）
-      # - OXALPHA_MODEL=stealth/ox-alpha
+      # 可选：唯一允许调用的模型名（默认 glm-4-flash）
+      # - GLM_MODEL=glm-4-flash
+      # 可选：上游地址（默认 https://open.bigmodel.cn/api/paas/v4）
+      # - GLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
     volumes:
       # 持久化数据库文件到宿主机 ./data（想弃用/迁移直接拷走这个目录即可）
       - ./data:/app/data

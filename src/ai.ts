@@ -7,9 +7,9 @@ import { authUserId } from './auth.js';
  *
  * 设计（用户拍板）：App 端零配置 + 单模型硬锁。
  *   - 客户端只请求自家服务器，API Key 配在服务器环境变量，永不随客户端分发；
- *   - 只有「OxAlpha 官方免费通道」一条路：模型固定为 OXALPHA_MODEL（默认 stealth/ox-alpha），
- *     不提供选择其他模型的入口——即使伪造请求带 provider/model 字段也一律忽略，
- *     防止任何人借服务器 Key 消耗其他模型的配额。
+ *   - 默认上游为智谱 GLM OpenAI 兼容接口（open.bigmodel.cn），模型固定为
+ *     GLM_MODEL（默认 glm-4-flash）。不提供选择其他模型的入口——即使伪造请求
+ *     带 provider/model 字段也一律忽略，防止任何人借服务器 Key 消耗其他模型的配额。
  *
  * 安全与健壮性：
  *   - Bearer token 鉴权（复用 sessions 表），AI 能力不对未登录者开放
@@ -20,28 +20,34 @@ import { authUserId } from './auth.js';
  *   - 90 秒超时（AbortSignal.timeout），超时返回 504
  *
  * 环境变量：
- *   - OPENROUTER_API_KEY   必填。AI 功能总开关；这把 OpenRouter Key 仅用于调用下方固定模型。
+ *   - GLM_API_KEY          必填。AI 功能总开关；这把智谱 Key 仅用于调用下方固定模型。
  *                          缺失时 AI 功能整体不可用（503 + 友好文案）。
- *   - OPENROUTER_BASE_URL  可选。默认 https://openrouter.ai/api/v1
- *   - OXALPHA_MODEL        可选。默认 stealth/ox-alpha
+ *                          兼容回退：未设置时回落读取旧的 OPENROUTER_API_KEY。
+ *   - GLM_BASE_URL         可选。默认 https://open.bigmodel.cn/api/paas/v4
+ *                          （GLM 的 OpenAI 兼容端点；兼容回退 OPENROUTER_BASE_URL）
+ *   - GLM_MODEL            可选。默认 glm-4-flash（兼容回退 OXALPHA_MODEL）
  */
 
-/** 上游基础地址（去尾斜杠；OpenRouter 协议兼容上游） */
+/** 上游基础地址（去尾斜杠；OpenAI 协议兼容上游，默认智谱 GLM） */
 function upstreamBase(): string {
-  return (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
+  return (
+    process.env.GLM_BASE_URL?.trim() ||
+    process.env.OPENROUTER_BASE_URL?.trim() ||
+    'https://open.bigmodel.cn/api/paas/v4'
+  ).replace(/\/+$/, '');
 }
 
-/** AI 功能总开关：未配置 Key 时所有代理端点不可用 */
+/** AI 功能总开关：未配置 Key 时所有代理端点不可用（新名优先，旧名回退兼容） */
 function apiKey(): string | null {
-  const key = process.env.OPENROUTER_API_KEY?.trim();
+  const key = process.env.GLM_API_KEY?.trim() || process.env.OPENROUTER_API_KEY?.trim();
   return key ? key : null;
 }
 
-const DEFAULT_MODEL = 'stealth/ox-alpha';
+const DEFAULT_MODEL = 'glm-4-flash';
 
-/** 固定模型名（唯一允许通过本服务器调用的模型） */
+/** 固定模型名（唯一允许通过本服务器调用的模型；新名优先，旧名回退兼容） */
 function fixedModel(): string {
-  return process.env.OXALPHA_MODEL?.trim() || DEFAULT_MODEL;
+  return process.env.GLM_MODEL?.trim() || process.env.OXALPHA_MODEL?.trim() || DEFAULT_MODEL;
 }
 
 /** 客户端允许的对话消息形状 */
@@ -95,10 +101,10 @@ app.get('/channels', (c) => {
   return c.json({
     /** 服务器是否已配置 AI Key（false 时代理端点均不可用） */
     configured,
-    /** 唯一通道 */
+    /** 唯一通道（id 保持 oxalpha 以兼容客户端，上游已切至智谱 GLM） */
     defaultChannel: 'oxalpha',
     channels: [
-      { id: 'oxalpha', label: 'OxAlpha 官方通道', model: fixedModel(), available: configured },
+      { id: 'oxalpha', label: 'GLM 官方通道', model: fixedModel(), available: configured },
     ],
   });
 });
@@ -113,7 +119,7 @@ app.post('/chat', async (c) => {
 
   const key = apiKey();
   if (!key) {
-    return c.json({ error: '服务器未配置 OPENROUTER_API_KEY，AI 功能暂不可用' }, 503);
+    return c.json({ error: '服务器未配置 GLM_API_KEY，AI 功能暂不可用' }, 503);
   }
 
   // 先按文本读取原始体并限体积，再手动解析（防止超大 JSON 打爆内存）
