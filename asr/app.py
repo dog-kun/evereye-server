@@ -11,6 +11,7 @@ GET  /health → {"ok": true}
 
 import io
 import os
+import threading
 import wave
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
@@ -21,15 +22,23 @@ MAX_SECONDS = 60
 
 app = FastAPI()
 model = None
+_model_lock = threading.Lock()
 
 
 def get_model():
     global model
-    if model is None:
-        # quantize=True 走 int8 ONNX；batch_size=1 省内存
-        model = Paraformer("iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
-                           quantize=True, batch_size=1, device_id=0)
+    with _model_lock:
+        if model is None:
+            # quantize=True 走 int8 ONNX；batch_size=1 省内存
+            model = Paraformer(
+                "iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
+                quantize=True, batch_size=1, device_id=0,
+            )
     return model
+
+
+# 启动即后台预热模型：首次识别请求不再吃"下载+加载"的数十秒（进度见容器日志）
+threading.Thread(target=get_model, daemon=True, name="model-warmup").start()
 
 
 def wav_pcm16_to_float32(data: bytes):
