@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db.js';
 import aiRoutes from './ai.js';
+import asrRoutes from './asr.js';
 import {
   randomHex,
   newToken,
@@ -36,6 +37,9 @@ app.get('/', (c) => c.json({ ok: true, service: 'evereasy-server', time: now() }
 
 // ─── AI 官方通道 · 后端全代理（OpenRouter / OxAlpha，Key 配在服务器环境变量，App 端零配置）───
 app.route('/api/ai', aiRoutes);
+
+// ─── 在线语音识别 · 转发内网 FunASR 容器（需登录；算力在服务器，App 端零模型）───
+app.route('/api', asrRoutes);
 
 // ─── 行类型 ───
 interface UserRow {

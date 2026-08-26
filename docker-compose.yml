@@ -6,19 +6,39 @@ services:
     ports:
       # 宿主机 8787 → 容器 8787；无域名无 HTTPS 时用 http://服务器IP:8787 访问
       - "8787:8787"
+    depends_on:
+      - asr
     environment:
       - PORT=8787
       - EVEREASY_DB=/app/data/evereasy.db
       # ── AI 官方通道（全代理，默认走智谱 GLM）：Key 不写在这里！写到同目录的 .env 文件里（一行）：
       #    echo 'GLM_API_KEY=你的智谱key' > .env
-      #    .env 已被 .gitignore 排除,永远不会进入 git/公开仓库 ──
+      #    .env 已被 .gitignore 排除, 永远不会进入 git/公开仓库 ──
       - GLM_API_KEY=${GLM_API_KEY:-}
       # 兼容旧名：若只配了 OPENROUTER_API_KEY 仍可生效（GLM_API_KEY 优先）
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      # 可选：唯一允许调用的模型名（默认 glm-4-flash）
+      # 可选：唯一允许调用的模型名（付费 glm-4-flash）
       # - GLM_MODEL=glm-4-flash
       # 可选：上游地址（默认 https://open.bigmodel.cn/api/paas/v4）
       # - GLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+      # ASR 内部转发令牌（Node→FunASR 容器；App 端走同步登录态，不接触此值）
+      - ASR_TOKEN=${ASR_TOKEN:-evereasy-asr-v1}
     volumes:
       # 持久化数据库文件到宿主机 ./data（想弃用/迁移直接拷走这个目录即可）
       - ./data:/app/data
+
+  # FunASR 中文语音识别（ONNX int8，内存峰值约 700MB；仅 compose 内网，不经宿主端口）
+  # 首次启动自动从 ModelScope 拉取模型约 230MB；1核1G 机器请先加 2G swap：
+  #   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  asr:
+    build: ./asr
+    container_name: evereasy-asr
+    restart: unless-stopped
+    environment:
+      - ASR_TOKEN=${ASR_TOKEN:-evereasy-asr-v1}
+    volumes:
+      - ./asr-model:/root/.cache
+    deploy:
+      resources:
+        limits:
+          memory: 900M
