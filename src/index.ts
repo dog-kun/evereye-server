@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { db } from './db.js';
 import aiRoutes from './ai.js';
 import asrRoutes from './asr.js';
+import deliveryRoutes from './delivery.js';
 import {
   randomHex,
   newToken,
@@ -40,6 +41,9 @@ app.route('/api/ai', aiRoutes);
 
 // ─── 在线语音识别 · 转发内网 FunASR 容器（需登录；算力在服务器，App 端零模型）───
 app.route('/api', asrRoutes);
+
+// ─── 自有分发通道：最新 APK + 更新清单（CI 自动推送，公开只读）───
+app.route('/api', deliveryRoutes);
 
 // ─── 行类型 ───
 interface UserRow {

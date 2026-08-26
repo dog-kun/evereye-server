@@ -26,6 +26,8 @@ services:
     volumes:
       # 持久化数据库文件到宿主机 ./data（想弃用/迁移直接拷走这个目录即可）
       - ./data:/app/data
+      # CI 自动推送的最新 APK + 更新清单（GitHub Actions scp 到此目录）
+      - /srv/evereasy-download:/app/data/download
 
   # FunASR 中文语音识别（ONNX int8，内存峰值约 700MB；仅 compose 内网，不经宿主端口）
   # 首次启动自动从 ModelScope 拉取模型约 230MB；1核1G 机器请先加 2G swap：
