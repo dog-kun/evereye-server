@@ -45,12 +45,8 @@ services:
         limits:
           memory: 900M
 
-  # 每 10 分钟从 GitHub Release 拉取最新 APK 到本机分发目录（拉模式：
-  # 服务器只出站请求，CI/App 均无需任何服务器凭据）。
-  # 需要在同目录 .env 里配一行只读令牌：
-  #   echo 'GH_RELEASE_TOKEN=github_pat_xxx' >> .env
-  # （GitHub → Settings → Developer settings → Fine-grained tokens，
-  #   仅勾选 dog-kun/evereasy 仓库 + Contents: Read-only，随时可吊销）
+  # 每 10 分钟从公开发布仓拉取最新 APK 到本机分发目录（拉模式：
+  # 服务器只出站请求，无需任何凭据；仓库转私有时在 .env 配 GH_RELEASE_TOKEN）
   release-sync:
     image: alpine:3.20
     container_name: evereasy-release-sync
@@ -59,7 +55,7 @@ services:
       - evereasy-server
     environment:
       - GH_RELEASE_TOKEN=${GH_RELEASE_TOKEN:-}
-      - GH_REPO=dog-kun/evereasy
+      - GH_REPO=dog-kun/evereasy-download
       - OUT_DIR=/out
       - PUBLIC_BASE=http://202.189.23.245:8787
     volumes:
