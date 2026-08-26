@@ -1,5 +1,9 @@
 FROM python:3.10-slim
 
+# 国内服务器直连 PyPI 常超时/被墙 → 用清华镜像源（env 方式，pip 全程生效，无需额外文件）
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ENV PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+
 RUN pip install --no-cache-dir \
     fastapi==0.111.0 \
     "uvicorn[standard]==0.30.1" \
