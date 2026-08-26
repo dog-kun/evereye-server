@@ -31,7 +31,7 @@ app.post('/asr', async (c) => {
         'X-User-Id': uid,
       },
       body: upstream,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(60000),
     });
   } catch {
     return c.json({ error: '语音服务不可达（容器未启动或仍在加载模型）' }, 502);
