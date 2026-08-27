@@ -1,8 +1,8 @@
 FROM python:3.10-slim
 
-# 国内服务器直连 PyPI 常超时 → 清华镜像源（env 方式，pip 全程生效）
-ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-ENV PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+# 国内服务器直连 PyPI 常超时 → 阿里云(淘宝)镜像源（env 方式，pip 全程生效）
+ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+ENV PIP_TRUSTED_HOST=mirrors.aliyun.com
 
 # 解压模型需要 unzip
 RUN apt-get update && apt-get install -y --no-install-recommends unzip \
