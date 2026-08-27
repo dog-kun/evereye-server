@@ -29,10 +29,9 @@ services:
       # CI 自动推送的最新 APK + 更新清单（GitHub Actions scp 到此目录）
       - /srv/evereasy-download:/app/data/download
 
-  # 中文语音识别（sherpa-onnx + Paraformer int8，纯 ONNX 推理，无 torch）
-  # 模型已在构建期烘焙进镜像（~230MB），运行时零下载、离线可用；内存峰值约 300~400MB。
-  # 仅 compose 内网，不经宿主端口。1核1G 机器加 1G swap 即稳：
-  #   fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  # 中文语音识别（Vosk 小模型，Kaldi C++ 推理，无 torch/onnxruntime）
+  # 模型已在构建期烘焙进镜像（~42MB），运行时零下载、离线可用；内存峰值约 200MB。
+  # 仅 compose 内网，不经宿主端口。1核1G 机器免 swap 即可运行。
   asr:
     build: ./asr
     container_name: evereasy-asr
@@ -42,7 +41,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 700M
+          memory: 500M
 
   # 每 10 分钟从公开发布仓拉取最新 APK 到本机分发目录（拉模式：
   # 服务器只出站请求，无需任何凭据；仓库转私有时在 .env 配 GH_RELEASE_TOKEN）
