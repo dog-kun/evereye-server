@@ -7,7 +7,7 @@ set -u
 
 REPO="${GH_REPO:-dog-kun/evereasy-download}"
 OUT="${OUT_DIR:-/out}"
-PUBLIC_BASE="${PUBLIC_BASE:-http://202.189.23.245:8787}"
+PUBLIC_BASE="${PUBLIC_BASE:-http://202.189.23.245:42363}"
 
 [ -f "$OUT/.tag" ] || : > "$OUT/.tag"
 
