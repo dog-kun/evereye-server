@@ -3,9 +3,10 @@ import { Hono } from 'hono';
 
 /**
  * 自有分发通道：
- *   GET /api/app-update          → app-update.json（版本/下载地址，App 内检查更新用）
+ *   GET /api/app-update          → app-update.json（版本/下载地址/更新说明）
  *   GET /api/download/latest.apk → 最新安装包（流式发送）
- *   POST /admin/publish-apk       → CI 推送新版 APK（需 Bearer token）
+ *   POST /admin/publish-apk      → CI 推送新版 APK（需 Bearer token）
+ *   POST /admin/publish-notes    → CI 推送版本更新说明（需 Bearer token）
  */
 const app = new Hono();
 
@@ -57,6 +58,21 @@ app.get('/download/latest.apk', (c) => {
   );
 });
 
+/** CI 推送更新说明 */
+app.post('/admin/publish-notes', authGuard, async (c) => {
+  try {
+    const body = await c.req.json<{ notes?: string }>().catch(() => ({}));
+    const d = dir();
+    const path = `${d}/app-update.json`;
+    let info: Record<string, unknown> = {};
+    try { info = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { /* 首次 */ }
+    if (body.notes !== undefined) info.notes = body.notes;
+    fs.writeFileSync(path, JSON.stringify(info, null, 2));
+    return c.json({ ok: true });
+  } catch {
+    return c.json({ error: '写入失败' }, 500);
+  }
+});
 /** CI 推送：接收 APK → 写入分发目录 + 生成 app-update.json */
 app.post('/admin/publish-apk', authGuard, async (c) => {
   try {
