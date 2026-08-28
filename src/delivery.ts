@@ -5,7 +5,7 @@ import { Hono } from 'hono';
  * 自有分发通道：
  *   GET /api/app-update          → app-update.json（版本/下载地址，App 内检查更新用）
  *   GET /api/download/latest.apk → 最新安装包（流式发送）
- *   POST /api/admin/publish-apk  → CI 推送新版 APK（需 Bearer token）
+ *   POST /admin/publish-apk       → CI 推送新版 APK（需 Bearer token）
  */
 const app = new Hono();
 
@@ -58,7 +58,7 @@ app.get('/download/latest.apk', (c) => {
 });
 
 /** CI 推送：接收 APK → 写入分发目录 + 生成 app-update.json */
-app.post('/api/admin/publish-apk', authGuard, async (c) => {
+app.post('/admin/publish-apk', authGuard, async (c) => {
   try {
     const body = await c.req.arrayBuffer();
     const d = dir();
