@@ -44,9 +44,12 @@ app.get('/download/latest.apk', (c) => {
   return c.newResponse(
     new ReadableStream<Uint8Array>({
       start(controller) {
-        stream.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk as Buffer)));
+        stream.on('data', (chunk) => {
+          if (!ended) controller.enqueue(new Uint8Array(chunk as Buffer));
+        });
         stream.on('end', () => { if (!ended) { ended = true; controller.close(); } });
         stream.on('error', () => { if (!ended) { ended = true; controller.close(); } });
+        stream.on('close', () => { if (!ended) { ended = true; controller.close(); } });
       },
     }),
     200,
