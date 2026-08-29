@@ -174,6 +174,7 @@ export const adminPage = `<!DOCTYPE html>
         <div class="muted">当前更新清单（App 检查更新读它）</div>
         <pre class="mono" id="manifest" style="white-space:pre-wrap;margin:8px 0 0">—</pre>
         <div class="muted" id="apkInfo" style="margin-top:8px">—</div>
+        <div class="muted" id="exeInfo" style="margin-top:4px">—</div>
       </div>
       <div class="card">
         <div class="muted">更新说明（改完立即对所有客户端生效）</div>
@@ -471,8 +472,11 @@ export const adminPage = `<!DOCTYPE html>
     api('/delivery').then(function (d) {
       el('manifest').textContent = d.manifest ? JSON.stringify(d.manifest, null, 2) : '暂无清单（等 CI 推送一次安装包）';
       el('apkInfo').textContent = d.apk
-        ? '安装包 ' + bytes(d.apk.bytes) + ' · 更新于 ' + when(d.apk.mtime) + ' · 目录 ' + d.dir
-        : '分发目录暂无安装包 · 目录 ' + d.dir;
+        ? '安卓 APK ' + bytes(d.apk.bytes) + ' · 更新于 ' + when(d.apk.mtime) + ' · 目录 ' + d.dir
+        : '分发目录暂无安卓安装包 · 目录 ' + d.dir;
+      el('exeInfo').textContent = d.exe
+        ? 'Windows 安装包 ' + bytes(d.exe.bytes) + ' · 更新于 ' + when(d.exe.mtime)
+        : '分发目录暂无 Windows 安装包（桌面端检查更新会回落 GitHub Release）';
       var notes = d.manifest && typeof d.manifest.notes === 'string' ? d.manifest.notes : '';
       el('notes').value = notes;
     }).catch(function (err) { show(el('msg'), err.message, false); });

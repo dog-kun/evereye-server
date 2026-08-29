@@ -428,14 +428,21 @@ app.get('/delivery', guard, (c) => {
   } catch {
     manifest = null;
   }
-  let apk: { bytes: number; mtime: string } | null = null;
-  try {
-    const st = fs.statSync(`${d}/app-release.apk`);
-    apk = { bytes: st.size, mtime: st.mtime.toISOString() };
-  } catch {
-    apk = null;
-  }
-  return c.json({ dir: d, manifest, apk });
+  /** 读一个安装包的体积与时间（不存在返回 null） */
+  const pkg = (name: string): { bytes: number; mtime: string } | null => {
+    try {
+      const st = fs.statSync(`${d}/${name}`);
+      return { bytes: st.size, mtime: st.mtime.toISOString() };
+    } catch {
+      return null;
+    }
+  };
+  return c.json({
+    dir: d,
+    manifest,
+    apk: pkg('app-release.apk'),
+    exe: pkg('evereasy-setup.exe'),
+  });
 });
 
 /** 改更新说明（App 的更新弹窗读这个字段） */

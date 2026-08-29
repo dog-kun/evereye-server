@@ -41,7 +41,29 @@ if [ -z "$got" ]; then
 fi
 
 mv "$OUT/app-release.apk.tmp" "$OUT/app-release.apk"
-printf '{"version":"%s","builtAt":"%s","url":"%s/api/download/latest.apk"}\n' \
-  "$tag" "$(date -u +%FT%TZ)" "$PUBLIC_BASE" > "$OUT/app-update.json"
+# 合并写清单：只改安卓那几个字段，保住 desktop* 与 notes。
+# 桌面安装包由 CI 直接 POST /api/admin/publish-desktop 推送，与本脚本互不相识；
+# 整体覆盖会把 desktopUrl 抹掉，桌面端就再也收不到更新了。
+mf="$OUT/app-update.json"
+now="$(date -u +%FT%TZ)"
+apk_url="$PUBLIC_BASE/api/download/latest.apk"
+if [ -s "$mf" ]; then
+  # 无 jq 可用（alpine 只装了 curl），用 sed 逐字段就地替换；字段缺失则追加
+  tmp="$mf.tmp"
+  cp "$mf" "$tmp"
+  for pair in "version:$tag" "builtAt:$now" "url:$apk_url"; do
+    k="${pair%%:*}"; v="${pair#*:}"
+    if grep -q "\"$k\"[[:space:]]*:" "$tmp"; then
+      # 分隔符用 | ：URL 里有 / 会撞掉 sed 的默认分隔符
+      sed -i "s|\"$k\"[[:space:]]*:[[:space:]]*\"[^\"]*\"|\"$k\": \"$v\"|" "$tmp"
+    else
+      sed -i "0,/{/s|{|{\n  \"$k\": \"$v\",|" "$tmp"
+    fi
+  done
+  mv "$tmp" "$mf"
+else
+  printf '{\n  "version": "%s",\n  "builtAt": "%s",\n  "url": "%s"\n}\n' \
+    "$tag" "$now" "$apk_url" > "$mf"
+fi
 echo "$tag" > "$OUT/.tag"
 echo "[sync] ✓ 已就位 $tag (via $got)"

@@ -1,6 +1,6 @@
 # 恒易记账 · 同步后端 (evereasy-server)
 
-极简云同步后端：**账号 + 端到端加密云备份 + 每 5 分钟自动同步 + 跨设备 + 扫码登录 + AI 全代理 + 管理后台**。
+极简云同步后端：**账号 + 端到端加密云备份 + 每 5 分钟自动同步 + 跨设备 + 扫码登录 + AI 全代理 + 双端安装包分发 + 管理后台**。
 技术栈 Node + Hono + SQLite（单文件数据库）。
 
 > 本仓库为**私密仓库**，与主应用仓库（dog-kun/evereasy）分离：后端源码与部署配置不对公开可见。
@@ -90,6 +90,12 @@ docker compose down             # 停止（数据仍在 ./data）
 | POST | `/api/pair/scan` | 手机端扫码 `{code}`：grant 码免登录直接领取 token；request 码需已登录批准电脑 | 视码类型 |
 | GET  | `/api/ai/channels` | 查询 AI 代理可用通道与默认模型 | Bearer |
 | POST | `/api/ai/chat` | AI 对话全代理 `{messages, temperature?}`（非流式，见「AI 官方通道」） | Bearer |
+| GET  | `/api/app-update` | 更新清单（两端字段共存，见「双端分发」） | 否 |
+| GET  | `/api/download/latest.apk` | 最新安卓安装包（流式） | 否 |
+| GET  | `/api/download/latest.exe` | 最新 Windows 安装包（流式） | 否 |
+| POST | `/api/admin/publish-apk` | CI 推送安卓包（流式落盘，合并写清单） | `PUBLISH_TOKEN` |
+| POST | `/api/admin/publish-desktop` | CI 推送 Windows 包（流式落盘，合并写清单） | `PUBLISH_TOKEN` |
+| POST | `/api/admin/publish-notes` | CI 推送更新说明（两端共用） | `PUBLISH_TOKEN` |
 | GET  | `/console` | 管理后台页面（单文件内联，见「管理后台」） | 页面内登录 |
 | —    | `/api/console/*` | 管理后台接口（口令登录，票据 12 小时） | 管理票据 |
 
@@ -123,7 +129,49 @@ messages 形状严格校验（400）；上游错误原样透传状态码与 JSON
 
 ---
 
-## 五、管理后台（`/console`）
+## 五、双端分发（安卓 APK + Windows exe）
+
+两端的安装包都由 GitHub Actions 构建后推到本服务器，App 内「检查更新」直接读本服务器（国内直连最快）。
+
+| | 安卓 | 桌面（Windows） |
+| --- | --- | --- |
+| CI workflow | `build-apk.yml`（ubuntu） | `build-desktop.yml`（windows） |
+| 推送端点 | `POST /api/admin/publish-apk` | `POST /api/admin/publish-desktop` |
+| 落盘文件 | `app-release.apk` | `evereasy-setup.exe` |
+| 下载直链 | `GET /api/download/latest.apk` | `GET /api/download/latest.exe` |
+| 清单字段 | `version` / `url` / `builtAt` | `desktopVersion` / `desktopUrl` / `desktopBuiltAt` |
+
+### 一份清单，两端字段共存
+
+`app-update.json` 同时保存两端的版本与直链，`notes` 共用：
+
+```json
+{
+  "version": "v1.0.28",
+  "url": "http://IP:PORT/api/download/latest.apk",
+  "builtAt": "2026-08-29T10:47:26.203Z",
+  "desktopVersion": "v1.0.28",
+  "desktopUrl": "http://IP:PORT/api/download/latest.exe",
+  "desktopBuiltAt": "2026-08-29T10:47:09.550Z",
+  "notes": "更新说明"
+}
+```
+
+三个 publish 端点都走**读-改-写合并**，只覆盖自己那几个字段。这是必须的：两条 CI 流水线独立运行、互不相识，若整体覆盖清单，后完成的那条会把先完成的字段抹掉（桌面先推、安卓后推 → `desktopUrl` 消失 → 桌面端再也收不到更新）。
+
+App 端按平台取字段：安卓读 `version`/`url`，桌面读 `desktopVersion`/`desktopUrl`。**版本号必须跟着平台走**——两条流水线可能不同步（安卓已到 v1.0.29、桌面还在 v1.0.28），桌面若拿安卓的 `version` 去比版本，会把旧 exe 当新版反复提示下载。`desktopVersion` 缺失时回落 `version`，兼容旧清单。
+
+### 上传是流式的
+
+`saveBodyToFile` 用 `stream.pipeline` 把请求体直接写进 `.tmp` 再原子改名，全程不把整包读进内存。Windows 安装包接近 90 MB，而本机总内存 1 GB 且已被其他容器占去大半，`await c.req.arrayBuffer()` 那种一次性 Buffer 必然 OOM 杀进程。先 `.tmp` 后改名也保证传输中断时不会留下半截包被用户下载到。
+
+### 桌面端的 GitHub 兜底
+
+打 `v*` tag 时 CI 会把 exe 同时附到 GitHub Release。自有服务器不可达时，App 的 updater 会自动按 `.exe` 后缀从 Release 挑包（通道 1）。两条路径任一通，桌面端就能收到更新。
+
+---
+
+## 六、管理后台（`/console`）
 
 站长控制台，浏览器打开 `http://你的服务器IP:端口/console`。
 
@@ -155,7 +203,7 @@ echo 'ADMIN_ALLOW_IPS=你的家宽IP' >> .env
 
 - **概览**：用户总数、近 7 天新增/活跃、登录设备数、云备份数与总体积、待用配对码、数据库文件体积、进程内存、运行时长、AI/CI 配置状态
 - **用户**：按邮箱搜索分页；看每个账号的注册时间、设备数、最近活跃、备份版本与体积；踢单个设备下线、踢全部设备下线、删号（级联删备份与设备，需回填邮箱二次确认）
-- **分发**：查看当前 `app-update.json` 与安装包体积/时间；直接改「更新说明」（App 更新弹窗读它）
+- **分发**：查看当前 `app-update.json` 与两端安装包（APK / Windows exe）的体积与时间；直接改「更新说明」（App 更新弹窗读它）
 - **维护**：清理过期配对码与过期管理票据；`VACUUM` 收缩数据库
 - **审计**：所有后台操作（含登录失败）留痕，带来源 IP
 
@@ -172,7 +220,7 @@ echo 'ADMIN_ALLOW_IPS=你的家宽IP' >> .env
 
 ---
 
-## 六、本地开发（不用 Docker 时）
+## 七、本地开发（不用 Docker 时）
 
 ```bash
 cd server
