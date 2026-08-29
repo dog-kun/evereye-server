@@ -2,11 +2,13 @@ import fs from 'node:fs';
 import { Hono } from 'hono';
 
 /**
- * 自有分发通道：
- *   GET /api/app-update          → app-update.json（版本/下载地址/更新说明）
- *   GET /api/download/latest.apk → 最新安装包（流式发送）
- *   POST /admin/publish-apk      → CI 推送新版 APK（需 Bearer token）
- *   POST /admin/publish-notes    → CI 推送版本更新说明（需 Bearer token）
+ * 自有分发通道（挂载于 /api，见 index.ts: app.route('/api', deliveryRoutes)）：
+ *   GET  /api/app-update          → app-update.json（版本/下载地址/更新说明）
+ *   GET  /api/download/latest.apk → 最新安装包（流式发送）
+ *   POST /api/admin/publish-apk   → CI 推送新版 APK（需 Bearer token）
+ *   POST /api/admin/publish-notes → CI 推送版本更新说明（需 Bearer token）
+ * 注意：本文件内路由为相对路径（/app-update 等），完整路径由 index.ts 的 /api 前缀拼接，
+ *       CI 推送时必须带 /api 前缀（见 evereasy 仓库 .github/workflows/build-apk.yml）。
  */
 const app = new Hono();
 
@@ -87,7 +89,8 @@ app.post('/admin/publish-apk', authGuard, async (c) => {
     // 从 header 取版本号（CI 传 X-Version）
     const version = c.req.header('X-Version') ?? 'dev';
     const publicBase = process.env.PUBLIC_BASE ?? 'http://202.189.23.245:42363';
-    const url = `${publicBase}/download/latest.apk`;
+    // 下载地址必须带 /api 前缀，与 index.ts 的挂载前缀一致（App 端据此直链下载）
+    const url = `${publicBase}/api/download/latest.apk`;
     const builtAt = new Date().toISOString();
     fs.writeFileSync(`${d}/app-update.json`, JSON.stringify({ version, url, builtAt }, null, 2));
     return c.json({ ok: true, version, builtAt });
