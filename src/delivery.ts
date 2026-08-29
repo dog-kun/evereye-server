@@ -66,7 +66,7 @@ app.get('/download/latest.apk', (c) => {
 /** CI 推送更新说明 */
 app.post('/admin/publish-notes', authGuard, async (c) => {
   try {
-    const body = await c.req.json<{ notes?: string }>().catch(() => ({}));
+    const body = await c.req.json<{ notes?: string }>().catch(() => ({ notes: undefined }));
     const d = dir();
     const path = `${d}/app-update.json`;
     let info: Record<string, unknown> = {};

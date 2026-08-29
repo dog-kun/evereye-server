@@ -3,8 +3,13 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
+# 换国内 apt 源（bookworm），避免默认 Debian 源在服务器出网被干扰拉不到包
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null \
+    || sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null \
+    || true
+
 # 原生模块 better-sqlite3 编译所需
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
 RUN npm install
