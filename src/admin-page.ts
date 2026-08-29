@@ -84,7 +84,8 @@ export const adminPage = `<!DOCTYPE html>
       </div>
       <p class="sub" style="margin:10px 0 0">
         当前部署无 HTTPS，口令在公网明文传输。建议配 <span class="mono">ADMIN_ALLOW_IPS</span> 白名单，
-        或用 SSH 隧道访问 127.0.0.1。
+        或用 SSH 隧道访问 127.0.0.1。填白名单前先在「审计」页确认本机被记成哪个 IP，
+        本机在 NAT 后，看到的可能不是你的真实地址。
       </p>
     </div>
   </div>

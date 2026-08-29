@@ -70,6 +70,10 @@ function allowedIps(): string[] {
  * 必须有 socket 兜底：本部署是裸 Docker 端口映射、没有反代，
  * 若只认 XFF 会让所有请求都变成 unknown —— 一旦配了 ADMIN_ALLOW_IPS 就会把站长自己锁在门外。
  * IPv6 映射前缀（::ffff:1.2.3.4）统一剥掉，便于白名单里直接写 IPv4。
+ *
+ * 已知局限（实测确认）：本机在 NAT 之后，从公网访问时容器看到的是 NAT 出口地址，
+ * 不是客户端真实 IP；Docker 内网访问则看到网关地址（如 192.168.x.1）。
+ * 因此白名单的正确用法是「先看审计里记到的值，再填那个值」，见 README 第五节。
  */
 function clientIp(c: {
   req: { header: (k: string) => string | undefined };
