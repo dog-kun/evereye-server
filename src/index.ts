@@ -5,6 +5,7 @@ import { db } from './db.js';
 import aiRoutes from './ai.js';
 import asrRoutes from './asr.js';
 import deliveryRoutes from './delivery.js';
+import adminRoutes, { adminPage, ADMIN_PAGE_HEADERS } from './admin.js';
 import {
   randomHex,
   newToken,
@@ -21,7 +22,8 @@ import {
  *   - 云备份：存/取端到端加密后的密文 blob，服务器看不懂内容；支持每 5 分钟自动上传
  *   - 跨设备：登录后各设备都能上传/下载同一份备份，按 version 判断新旧
  *   - 扫码登录：已登录设备生成配对码 → 新设备扫码即免密登录（双向：手机扫电脑 / 电脑扫手机）
- *   - AI 代理：/api/ai/* 转发 OpenRouter（OxAlpha 官方免费模型同源），API Key 只配在服务器
+ *   - AI 代理：/api/ai/* 转发 OpenRouter（OxAlpha 官方免费模型同源）
+ *   - 管理后台：GET /console 页面 + /api/console/* 接口（口令来自 ADMIN_PASSWORD，默认关闭）
  *
  * 部署：Docker（无域名无 HTTPS，直接 http://IP:PORT 访问；见 README）。
  */
@@ -44,6 +46,10 @@ app.route('/api', asrRoutes);
 
 // ─── 自有分发通道：最新 APK + 更新清单（CI 自动推送，公开只读）───
 app.route('/api', deliveryRoutes);
+
+// ─── 管理后台（站长用；未配置 ADMIN_PASSWORD 时接口全 503，页面显示"未启用"）───
+app.route('/api/console', adminRoutes);
+app.get('/console', (c) => c.html(adminPage, 200, ADMIN_PAGE_HEADERS));
 
 // ─── 行类型 ───
 interface UserRow {

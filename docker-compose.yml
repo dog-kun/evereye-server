@@ -25,6 +25,14 @@ services:
       - ASR_TOKEN=${ASR_TOKEN:-evereasy-asr-v1}
       # CI 推送 APK 鉴权 key（留空则禁用推送接口）
       - PUBLISH_TOKEN=${PUBLISH_TOKEN:-}
+      # ── 管理后台 http://IP:PORT/console ──
+      # 默认关闭：不配 ADMIN_PASSWORD 时页面显示"未启用"、接口全 503（不存在默认口令）
+      # 开启方式（写进同目录 .env，勿写在本文件里）：
+      #   echo 'ADMIN_PASSWORD=你的强口令' >> .env
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # 可选但强烈建议：来源 IP 白名单（逗号分隔）。当前无 HTTPS，口令明文过公网，
+      # 只从固定 IP 访问能显著降低风险；留空=不限制
+      - ADMIN_ALLOW_IPS=${ADMIN_ALLOW_IPS:-}
     volumes:
       # 持久化数据库文件到宿主机 ./data（想弃用/迁移直接拷走这个目录即可）
       - ./data:/app/data

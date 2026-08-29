@@ -10,6 +10,8 @@ import { dirname } from 'node:path';
  *   sessions - 登录令牌：token → userId，长期有效（用户要求"不搞过一段时间退登录"）
  *   backups  - 云备份：每用户一份，存端到端加密后的密文 blob（服务器看不懂内容）
  *   pairings - 扫码配对：一次性配对码，用于"已登录设备"授权"新设备"免密登录
+ *   admin_sessions - 管理后台登录票据（与 App 用户体系完全隔离，12 小时过期）
+ *   admin_audit    - 管理后台操作审计（谁在何时做了什么危险操作）
  */
 
 const DB_PATH = process.env.EVEREASY_DB ?? 'data/evereasy.db';
@@ -65,4 +67,27 @@ CREATE TABLE IF NOT EXISTS pairings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- ─── 管理后台（与 App 用户体系完全隔离：口令来自环境变量，不进 users 表）───
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  token      TEXT PRIMARY KEY,
+  -- 创建来源 IP（仅用于审计展示，不做鉴权依据）
+  ip         TEXT,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  -- 动作标识（如 login / delete-user / revoke-session / publish-notes）
+  action     TEXT NOT NULL,
+  -- 动作目标（用户 id / token 前缀等），可空
+  target     TEXT,
+  detail     TEXT,
+  ip         TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_time ON admin_audit(created_at DESC);
 `);

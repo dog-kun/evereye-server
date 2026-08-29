@@ -58,7 +58,25 @@ echo "  上游响应: $RESP" | head -c 600
 CONTENT=$(printf '%s' "$RESP" | grep -oE '"content"[ ]*:[ ]*"[^"]*"' | head -1 | sed -E 's/.*:"([^"]*)".*/\1/')
 if [ -n "$CONTENT" ]; then ok "免费模型 glm-4-flash 可用，模型返回: $CONTENT"; else bad "未从上游取到有效 content（key失效/模型不可用/额度耗尽？）"; fi
 
-sec "5. CI 路径与后端挂载一致性（静态 grep）"
+sec "5. 管理后台接线（/console 页面 + /api/console/*）"
+CODE_PAGE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:8787/console" 2>/dev/null)
+echo "  GET /console                            -> HTTP $CODE_PAGE (期望 200=页面已挂载)"
+ADMIN_STATUS=$(curl -s --max-time 8 "http://127.0.0.1:8787/api/console/status" 2>/dev/null)
+echo "  GET /api/console/status                 -> $ADMIN_STATUS"
+# 未登录访问受保护接口：后台开启时应 401，未开启时应 503
+CODE_OV=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:8787/api/console/overview" 2>/dev/null)
+echo "  GET /api/console/overview (未登录)      -> HTTP $CODE_OV (401=后台已开启 / 503=未配 ADMIN_PASSWORD)"
+if [ "$CODE_PAGE" = "200" ]; then ok "/console 页面已挂载"; else bad "/console 返回 $CODE_PAGE"; fi
+case "$CODE_OV" in
+  401) ok "管理后台已启用且鉴权生效" ;;
+  503) warn "管理后台未启用（服务器未配 ADMIN_PASSWORD）——如需开启见 README 第五节" ;;
+  *)   bad "/api/console/overview 返回意外状态 $CODE_OV" ;;
+esac
+echo "  提示：容器内是否配了口令 ->"
+docker exec evereasy-server env 2>/dev/null | grep -E '^(ADMIN_PASSWORD|ADMIN_ALLOW_IPS)=' | \
+  sed -E 's/(ADMIN_PASSWORD)=.*/\1=***REDACTED（已配置）***/' | sed 's/^/    /' || echo "    (未配置任何 ADMIN_* 变量)"
+
+sec "6. CI 路径与后端挂载一致性（静态 grep）"
 echo "  --- evereasy 仓库 CI 推送路径 ---"
 grep -nE 'PUBLISH_URL/(api/)?admin/' /opt/evereye-server/../evereasy/.github/workflows/build-apk.yml 2>/dev/null || \
   echo "  (本地 evereasy 仓库不在标准位置，跳过；以服务器部署后 CI 实际跑为准)"
